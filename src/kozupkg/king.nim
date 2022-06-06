@@ -2,9 +2,9 @@ import shade
 
 proc createIdleAnimation(king: Sprite): Animation =
   const
-    frameSpeed = 0.10
+    frameDuration = 0.10
     frameCount = 8
-    animDuration = frameCount * frameSpeed
+    animDuration = frameCount * frameDuration
 
   # Set up the idle animation
   let idleAnim = newAnimation(animDuration, true)
@@ -13,7 +13,7 @@ proc createIdleAnimation(king: Sprite): Animation =
   let animCoordFrames: seq[KeyFrame[IVector]] =
     @[
       (ivector(0, 5), 0.0),
-      (ivector(10, 5), animDuration - frameSpeed),
+      (ivector(10, 5), animDuration - frameDuration),
     ]
   idleAnim.addNewAnimationTrack(
     king.frameCoords,
@@ -23,9 +23,9 @@ proc createIdleAnimation(king: Sprite): Animation =
 
 proc createRunAnimation(king: Sprite): Animation =
   const
-    frameSpeed = 0.08
+    frameDuration = 0.08
     frameCount = 8
-    animDuration = frameCount * frameSpeed
+    animDuration = frameCount * frameDuration
 
   # Set up the run animation
   var runAnim = newAnimation(animDuration, true)
@@ -34,7 +34,7 @@ proc createRunAnimation(king: Sprite): Animation =
   let animCoordFrames: seq[KeyFrame[IVector]] =
     @[
       (ivector(0, 7), 0.0),
-      (ivector(7, 7), animDuration - frameSpeed),
+      (ivector(7, 7), animDuration - frameDuration),
     ]
   runAnim.addNewAnimationTrack(
     king.frameCoords,
@@ -52,28 +52,29 @@ proc createAnimPlayer(sprite: Sprite): AnimationPlayer =
   result.addAnimation("run", createRunAnimation(sprite))
   result.playAnimation("idle")
 
-proc createCollisionShape(): CollisionShape =
-  result = newCollisionShape(newAABB(-8, -13, 8, 13))
+proc createCollisionShape(scale: Vector): CollisionShape =
+  result = newCollisionShape(newAABB(-8, -13, 8, 13).getScaledInstance(scale))
   result.material = initMaterial(1, 0, 0.97)
 
 type King* = ref object of PhysicsBody
   animationPlayer: AnimationPlayer
-  sprite: Sprite
+  sprite*: Sprite
 
-proc createNewKing*(): King =
+proc createNewKing*(scale: Vector): King =
   result = King()
   initPhysicsBody(PhysicsBody(result))
-
+  result.scale = scale
   let sprite = createKingSprite()
   sprite.offset = vector(8.0, 1.0)
   result.sprite = sprite
   result.animationPlayer = createAnimPlayer(sprite)
 
-  let collisionShape = createCollisionShape()
+  let collisionShape = createCollisionShape(scale)
   result.collisionShape = collisionShape
 
 proc playAnimation*(king: King, name: string) =
-  king.animationPlayer.playAnimation(name)
+  if king.animationPlayer.currentAnimationName != name:
+    king.animationPlayer.playAnimation(name)
 
 method update*(this: King, deltaTime: float) =
   procCall PhysicsBody(this).update(deltaTime)

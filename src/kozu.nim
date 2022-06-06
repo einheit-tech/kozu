@@ -1,5 +1,6 @@
 import shade
 import kozupkg/king
+import kozupkg/platform as platformModule
 
 initEngineSingleton(
   "Physics Example",
@@ -9,87 +10,56 @@ initEngineSingleton(
   clearColor = newColor(91, 188, 228)
 )
 
-let layer = newPhysicsLayer()
+let layer = newPhysicsLayer(vector(0, 1200))
 Game.scene.addLayer layer
 
 # King
-let player = createNewKing()
+let player = createNewKing(vector(6, 6))
 player.x = 1920 / 2
 player.y = 640
 
 # Track the player with the camera.
 let camera = newCamera(player, 0.25, easeInAndOutQuadratic)
-camera.z = 0.55
+camera.z = -0.55
 Game.scene.camera = camera
 
 let
-  (_, groundImage) = Images.loadImage("./assets/ground.png", FILTER_NEAREST)
-  (_, wallImage) = Images.loadImage("./assets/wall.png", FILTER_NEAREST)
+  (_, groundImage) = Images.loadImage("./assets/lowerGround.png")
+  (_, plat1Image) = Images.loadImage("./assets/plat1.png")
 
 # Ground
 let
   halfGroundWidth = groundImage.w.float / 2
   halfGroundHeight = groundImage.h.float / 2
+  halfplat1Width = plat1Image.w.float / 2
+  halfplat1Height = plat1Image.h.float / 2
 
-let groundShape = newCollisionShape(
-  newPolygon([
-    vector(halfGroundWidth, halfGroundHeight),
-    vector(halfGroundWidth, -halfGroundHeight),
-    vector(-halfGroundWidth, -halfGroundHeight),
-    vector(-halfGroundWidth, halfGroundHeight)
-  ])
+let groundBounds = newAABB(
+  -halfGroundWidth, -halfGroundHeight * 0.5, halfGroundWidth, halfGroundHeight
 )
-groundShape.material = PLATFORM
 
-let ground = newPhysicsBody(
-  kind = PhysicsBodyKind.STATIC
+let plat1Bounds = newAABB(
+  -halfplat1Width + 10, -halfplat1Height * 0.5 - 12, halfplat1Width - 5, halfplat1Height - 15
 )
+
+let ground = newPlatform(groundImage, groundBounds)
+let plat1 = newPlatform(plat1Image, plat1Bounds)
 
 ground.x = 1920 / 2
-ground.y = 1080 - groundShape.getBounds().height / 2
+ground.y = 1080 - groundBounds.height / 2
 
-ground.collisionShape = groundShape
-let groundSprite = newSprite(groundImage)
-ground.onRender = proc(this: Node, ctx: Target) =
-  groundSprite.render(ctx)
+plat1.x = 1920 / 2
+plat1.y = ground.y - 400
 
-let wallShapePolygon = newPolygon([
-  vector(wallImage.w.float / 2, wallImage.h.float / 2),
-  vector(wallImage.w.float / 2, -wallImage.h.float / 2),
-  vector(-wallImage.w.float / 2, -wallImage.h.float / 2),
-  vector(-wallImage.w.float / 2, wallImage.h.float / 2),
-])
-
-let wallSprite = newSprite(wallImage)
-
-proc createWall(): PhysicsBody =
-  # Left wall
-  let wallShape = newCollisionShape(wallShapePolygon)
-  wallShape.material = PLATFORM
-  result = newPhysicsBody(kind = PhysicsBodyKind.STATIC)
-  result.collisionShape = wallShape
-  
-  result.onRender = proc(this: Node, ctx: Target) =
-    wallSprite.render(ctx)
-
-let leftWall = createWall()
-leftWall.x = ground.x - ground.width / 2 + leftWall.width / 2
-leftWall.y = ground.y - ground.height / 2 - leftWall.height / 2
-
-let rightWall = createWall()
-rightWall.x = ground.x + ground.width / 2 - rightWall.width / 2
-rightWall.y = leftWall.y
-
-layer.addChild(ground)
-layer.addChild(leftWall)
-layer.addChild(rightWall)
 layer.addChild(player)
+layer.addChild(ground)
+layer.addChild(plat1)
 
 # Custom physics handling for the player
 const
-  maxSpeed = 400.0
+  maxSpeed = 800.0
   acceleration = 100.0
-  jumpForce = -350.0
+  jumpForce = -750.0
 
 proc physicsProcess(this: Node, deltaTime: float) =
   if Input.wasKeyJustPressed(K_ESCAPE):
@@ -146,9 +116,6 @@ proc physicsProcess(this: Node, deltaTime: float) =
   camera.z += Input.wheelScrolledLastFrame.float * 0.03
 
 player.onUpdate = physicsProcess
-
-# Use a negative x scale to flip the image
-rightWall.scale = vector(-1, 1)
 
 when not defined(debug):
   # Play some music
